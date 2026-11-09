@@ -14,6 +14,7 @@ import {
   HttpCode,
   Logger,
   Optional,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiSecurity, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { timingSafeEqual } from 'crypto';
@@ -30,6 +31,8 @@ import { ProductEventService, ProductEvents } from '../audit/product-event.servi
 import { CardTrialEligibilityService } from './card-trial-eligibility.service';
 import { CardTrialOfferService } from './card-trial-offer.service';
 import { LicenseWallService, type LicenseWallView } from './license-wall.service';
+import { PlanFitService } from './plan-fit.service';
+import { isFitPlan, type FitPlan, type PlanFit } from './plan-fit';
 import { createEmailLinkToken } from '../common/email-link-token';
 import {
   CHECKOUT_BILLING_PERIODS,
@@ -115,6 +118,7 @@ export class LicenseController {
     private readonly cardTrialEligibility: CardTrialEligibilityService,
     private readonly cardTrialOffer: CardTrialOfferService,
     @Optional() private readonly licenseWall?: LicenseWallService,
+    @Optional() private readonly planFit?: PlanFitService,
   ) {}
 
   @Get('status')
@@ -481,6 +485,24 @@ export class LicenseController {
       .currentOffer(req.user?.organizationId, req.user?.role, req.user?.email)
       .catch(() => null);
     return { offer };
+  }
+
+  @Get('plan-fit')
+  @UseGuards(JwtOrManagementKeyGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiBearerAuth()
+  @ApiSecurity('api-key')
+  @ApiOperation({
+    summary:
+      'Cloud: what this workspace keeps and loses on Starter and Team (connectors, MCP servers, users, File Search, code mode), with the connectors and servers that would stay active or be paused',
+  })
+  async planFitForUser(@Req() req: any, @Query('plan') plan?: string): Promise<{ plans: Partial<Record<FitPlan, PlanFit>> }> {
+    // Plan limits are a Cloud matter: self-hosted has none of these caps.
+    const organizationId: string | undefined = req.user?.organizationId;
+    if (!this.planFit || !this.deployment.isCloud() || !organizationId) throw new NotFoundException();
+    if (plan !== undefined && !isFitPlan(plan)) throw new BadRequestException('plan must be starter or team');
+    if (plan) return { plans: { [plan]: await this.planFit.fit(organizationId, plan) } };
+    return { plans: await this.planFit.fitAll(organizationId) };
   }
 
   @Get('wall')

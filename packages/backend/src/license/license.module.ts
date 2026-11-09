@@ -10,9 +10,11 @@ import { TrialExtensionController } from './trial-extension.controller';
 import { ReactivationController } from './reactivation.controller';
 import { SettingsModule } from '../settings/settings.module';
 import { UsersModule } from '../users/users.module';
+import { FileSearchCoreModule } from '../file-search/file-search-core.module';
+import { PlanFitService } from './plan-fit.service';
 
 @Module({
-  imports: [SettingsModule, UsersModule],
+  imports: [SettingsModule, UsersModule, FileSearchCoreModule],
   controllers: [LicenseController, TrialExtensionController, ReactivationController],
   providers: [
     LicenseService,
@@ -21,6 +23,7 @@ import { UsersModule } from '../users/users.module';
     CardTrialOfferService,
     LicenseWallService,
     RetentionLicenceClient,
+    PlanFitService,
   ],
   exports: [
     LicenseService,
@@ -28,6 +31,7 @@ import { UsersModule } from '../users/users.module';
     CardTrialEligibilityService,
     CardTrialOfferService,
     RetentionLicenceClient,
+    PlanFitService,
   ],
 })
 export class LicenseModule {}
